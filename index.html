@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UV Proxy v2</title>
+<style>
+/* ────────────────────────────────────────────────────────────
+   Design: CRT terminal / industrial — dark, monochrome accent
+──────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:ital,wght@0,300;0,600;0,900;1,300&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #080810;
+  --surface:   #0f0f1a;
+  --surface2:  #141422;
+  --border:    #1e1e30;
+  --border2:   #2a2a3f;
+  --accent:    #00ffe0;
+  --accent2:   #7b61ff;
+  --accent3:   #ff6b35;
+  --text:      #b8bcd0;
+  --text2:     #7a7d96;
+  --dim:       #40425a;
+  --red:       #ff3b4e;
+  --green:     #1fdd7a;
+  --yellow:    #f5c542;
+  --mono:      'Share Tech Mono', monospace;
+  --sans:      'Barlow', sans-serif;
+  --radius:    0px;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow-x: hidden; }
+
+/* CRT scanlines */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,224,.012) 2px, rgba(0,255,224,.012) 4px);
+  pointer-events: none; z-index: 9997;
+}
+/* grain */
+body::after {
+  content: '';
+  position: fixed; inset: -100%;
+  width: 400%; height: 400%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.045'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 9996;
+  animation: grain .5s steps(1) infinite;
+}
+@keyframes grain {
+  0%,100%{transform:translate(0,0)} 10%{transform:translate(-2%,-3%)} 20%{transform:translate(3%,2%)}
+  30%{transform:translate(-1%,4%)} 40%{transform:translate(4%,-1%)} 50%{transform:translate(-3%,3%)}
+  60%{transform:translate(2%,-4%)} 70%{transform:translate(-4%,1%)} 80%{transform:translate(1%,-2%)}
+  90%{transform:translate(3%,4%)}
+}
+
+/* ── shell ── */
+.shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; max-width: 860px; margin: 0 auto; padding: 0 28px; }
+
+/* ── header ── */
+header { padding: 32px 0 24px; border-bottom: 1px solid var(--border2); position: relative; }
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.logo { display: flex; align-items: center; gap: 14px; }
+.logo-badge {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .2em;
+  color: var(--accent); border: 1px solid var(--accent);
+  padding: 4px 10px; position: relative;
+  animation: flicker 8s infinite;
+  text-shadow: 0 0 8px var(--accent);
+}
+@keyframes flicker {
+  0%,94%,100%{opacity:1;} 95%{opacity:.55;} 96%{opacity:.9;} 97%{opacity:.4;} 98%{opacity:1;} 99%{opacity:.7;}
+}
+.logo-badge::before {
+  content: '';
+  position: absolute; top: -4px; left: -4px; right: -4px; bottom: -4px;
+  border: 1px solid rgba(0,255,224,.18);
+}
+.logo-title { font-size: 28px; font-weight: 900; letter-spacing: -.04em; color: #fff; }
+.logo-title em { font-style: normal; color: var(--accent); }
+.logo-sub { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: .15em; margin-top: 3px; }
+
+.status-cluster { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.stat { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10px; color: var(--dim); }
+.led { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+.led.on  { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2.5s infinite; }
+.led.err { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+.led.warn{ background: var(--yellow);box-shadow: 0 0 8px var(--yellow); }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.6;} }
+
+/* ── main ── */
+main { padding: 32px 0 24px; display: flex; flex-direction: column; gap: 18px; }
+
+/* ── card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  position: relative;
+  overflow: hidden;
+}
+.card-accent { background: linear-gradient(90deg, var(--accent2), var(--accent)); height: 1px; }
+.card-body { padding: 22px 24px 20px; }
+.card-label {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-label::after { content:''; flex: 1; height: 1px; background: var(--border2); }
+
+/* ── URL input ── */
+.url-row { display: flex; gap: 8px; }
+.url-input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border2);
+  color: #e8ecff; font-family: var(--mono); font-size: 13px;
+  padding: 11px 14px; outline: none; transition: border-color .15s, box-shadow .15s;
+  min-width: 0;
+}
+.url-input::placeholder { color: var(--dim); }
+.url-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,255,224,.1); }
+
+.go-btn {
+  background: var(--accent); color: #000; border: none;
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  letter-spacing: .12em; padding: 0 22px; cursor: pointer;
+  text-transform: uppercase; white-space: nowrap;
+  transition: background .12s, box-shadow .12s;
+}
+.go-btn:hover { background: #fff; box-shadow: 0 0 20px rgba(0,255,224,.4); }
+.go-btn:active { transform: scale(.97); }
+.go-btn:disabled { background: var(--dim); cursor: not-allowed; }
+
+/* ── quick links ── */
+.quick-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+.qbtn {
+  background: transparent; border: 1px solid var(--border2);
+  color: var(--text2); font-family: var(--mono); font-size: 11px;
+  padding: 6px 13px; cursor: pointer;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.qbtn:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(123,97,255,.08); }
+.qbtn .tag { color: var(--dim); margin-right: 4px; font-size: 10px; }
+
+/* ── options row ── */
+.opt-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.opt-check { display: flex; align-items: center; gap: 6px; cursor: pointer; font-family: var(--mono); font-size: 10px; color: var(--dim); user-select: none; }
+.opt-check input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; }
+.opt-check:hover { color: var(--text); }
+
+/* ── log panel ── */
+.log-wrap { background: var(--bg); border: 1px solid var(--border); }
+.log-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 14px; border-bottom: 1px solid var(--border);
+  font-family: var(--mono); font-size: 9px; letter-spacing: .15em;
+  color: var(--dim); text-transform: uppercase;
+}
+.log-clear { background: none; border: none; color: var(--dim); cursor: pointer; font-family: var(--mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+.log-clear:hover { color: var(--red); }
+.log-body { padding: 10px 14px; max-height: 160px; overflow-y: auto; font-family: var(--mono); font-size: 11px; line-height: 1.8; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+.le { color: var(--dim); }
+.le.ok   { color: var(--green); }
+.le.err  { color: var(--red); }
+.le.info { color: var(--accent); }
+.le.warn { color: var(--yellow); }
+.le .ts  { color: var(--dim); margin-right: 8px; opacity: .7; }
+.le .meth{ color: var(--accent3); margin-right: 6px; font-size: 9px; }
+
+/* ── info grid ── */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media(max-width:580px){ .info-grid{ grid-template-columns:1fr; } }
+.info-card { background: var(--surface2); border: 1px solid var(--border); padding: 16px 18px; }
+.info-card h3 { font-family: var(--mono); font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent2); margin-bottom: 9px; }
+.info-card p, .info-card li { font-size: 12px; color: var(--dim); line-height: 1.7; }
+.info-card ul { list-style: none; padding: 0; }
+.info-card li::before { content: "›  "; color: var(--accent); }
+code { background: var(--bg); border: 1px solid var(--border2); color: var(--accent); font-family: var(--mono); font-size: 10px; padding: 1px 6px; }
+
+/* ── footer ── */
+footer { padding: 16px 0; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+footer p, footer a { font-family: var(--mono); font-size: 9px; color: var(--dim); text-decoration: none; letter-spacing: .1em; }
+footer a:hover { color: var(--accent); }
+
+/* ════════════════════════════════════════════════════════════
+   PROXY IFRAME OVERLAY
+════════════════════════════════════════════════════════════ */
+.overlay { position: fixed; inset: 0; background: var(--bg); z-index: 500; display: none; flex-direction: column; }
+.overlay.active { display: flex; }
+
+.toolbar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; background: var(--surface);
+  border-bottom: 1px solid var(--border2);
+  flex-shrink: 0;
+}
+.tb-btn {
+  background: transparent; border: 1px solid var(--border2);
+  color: var(--text2); font-family: var(--mono); font-size: 10px;
+  padding: 5px 12px; cursor: pointer; white-space: nowrap;
+  transition: all .1s; letter-spacing: .08em;
+}
+.tb-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tb-btn.danger { border-color: var(--red); color: var(--red); }
+.tb-btn.danger:hover { background: var(--red); color: #000; }
+.tb-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.addr-bar {
+  flex: 1; background: var(--bg); border: 1px solid var(--border2);
+  color: #e8ecff; font-family: var(--mono); font-size: 11px;
+  padding: 5px 12px; outline: none; min-width: 0;
+  transition: border-color .12s;
+}
+.addr-bar:focus { border-color: var(--accent); }
+.addr-bar.loading { color: var(--dim); }
+
+.security-badge {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .1em;
+  padding: 3px 8px; border: 1px solid var(--border2); color: var(--dim);
+  white-space: nowrap; flex-shrink: 0;
+}
+.security-badge.https { border-color: var(--green); color: var(--green); }
+
+.progress-bar { height: 2px; background: var(--border); flex-shrink: 0; position: relative; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); width: 0; transition: width .3s; }
+.progress-fill.indeterminate {
+  width: 40%; animation: indeterminate 1s ease-in-out infinite;
+}
+@keyframes indeterminate { 0%{margin-left:-40%;} 100%{margin-left:100%;} }
+
+#proxy-frame { flex: 1; border: none; background: #fff; }
+
+/* ── modal (direct link / encode tool) ── */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(8,8,16,.85); z-index: 600; display: none; place-items: center; }
+.modal-backdrop.active { display: grid; }
+.modal { background: var(--surface); border: 1px solid var(--border2); padding: 28px; width: min(480px, 90vw); }
+.modal h3 { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; color: var(--accent2); margin-bottom: 16px; text-transform: uppercase; }
+.modal input { width: 100%; background: var(--bg); border: 1px solid var(--border2); color: #e8ecff; font-family: var(--mono); font-size: 12px; padding: 9px 12px; outline: none; margin-bottom: 10px; }
+.modal input:focus { border-color: var(--accent); }
+.modal-result { background: var(--bg); border: 1px solid var(--border); padding: 10px 12px; font-family: var(--mono); font-size: 11px; color: var(--accent); word-break: break-all; min-height: 36px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }
+.modal-btn { background: transparent; border: 1px solid var(--border2); color: var(--text2); font-family: var(--mono); font-size: 10px; padding: 7px 16px; cursor: pointer; transition: all .1s; }
+.modal-btn:hover { border-color: var(--accent); color: var(--accent); }
+.modal-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+.modal-btn.primary:hover { background: #fff; border-color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ MAIN UI ═══════════════ -->
+<div class="shell">
+  <header>
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-badge">UV / v2</div>
+        <div>
+          <div class="logo-title">Ultra<em>violet</em> Proxy</div>
+          <div class="logo-sub">// service worker + node.js reverse proxy</div>
+        </div>
+      </div>
+      <div class="status-cluster">
+        <div class="stat"><div class="led" id="led-sw"></div><span id="stat-sw">SW: init…</span></div>
+        <div class="stat"><div class="led" id="led-srv"></div><span id="stat-srv">Server: init…</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- URL input -->
+    <div class="card">
+      <div class="card-accent"></div>
+      <div class="card-body">
+        <div class="card-label">Target URL</div>
+        <div class="url-row">
+          <input type="url" id="url-input" class="url-input" placeholder="https://example.com" autocomplete="off" spellcheck="false" />
+          <button class="go-btn" id="go-btn">GO →</button>
+        </div>
+        <div class="opt-row">
+          <label class="opt-check"><input type="checkbox" id="opt-newtab" /> Open in new tab</label>
+          <label class="opt-check"><input type="checkbox" id="opt-rewrite-js" checked /> JS rewrite</label>
+          <label class="opt-check"><input type="checkbox" id="opt-strip-csp" checked /> Strip CSP</label>
+          <label class="opt-check" style="margin-left:auto;"><input type="checkbox" id="opt-dark-ui" /> Dark overlay UI</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick links -->
+    <div class="card">
+      <div class="card-accent" style="background:linear-gradient(90deg,var(--accent3),var(--accent2));"></div>
+      <div class="card-body">
+        <div class="card-label">Quick Access</div>
+        <div class="quick-grid" id="quick-grid">
+          <button class="qbtn" data-url="https://www.wikipedia.org"><span class="tag">01</span>Wikipedia</button>
+          <button class="qbtn" data-url="https://news.ycombinator.com"><span class="tag">02</span>HackerNews</button>
+          <button class="qbtn" data-url="https://www.reddit.com"><span class="tag">03</span>Reddit</button>
+          <button class="qbtn" data-url="https://github.com"><span class="tag">04</span>GitHub</button>
+          <button class="qbtn" data-url="https://stackoverflow.com"><span class="tag">05</span>StackOverflow</button>
+          <button class="qbtn" data-url="https://httpbin.org/get"><span class="tag">06</span>HTTPBin /get</button>
+          <button class="qbtn" data-url="https://httpbin.org/headers"><span class="tag">07</span>HTTPBin /headers</button>
+          <button class="qbtn" data-url="https://example.com"><span class="tag">08</span>example.com</button>
+          <button class="qbtn" data-url="https://www.bbc.com/news"><span class="tag">09</span>BBC News</button>
+          <button class="qbtn" data-url="https://www.nytimes.com"><span class="tag">10</span>NYTimes</button>
+          <button class="qbtn" data-url="https://archive.org"><span class="tag">11</span>Internet Archive</button>
+          <button class="qbtn" data-url="https://developer.mozilla.org"><span class="tag">12</span>MDN</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="log-wrap">
+      <div class="log-header">
+        <span>// activity log</span>
+        <button class="log-clear" id="log-clear">clear</button>
+      </div>
+      <div class="log-body" id="log-body">
+        <div class="le info"><span class="ts">[BOOT]</span>UV Proxy v2 initializing…</div>
+      </div>
+    </div>
+
+    <!-- Info grid -->
+    <div class="info-grid">
+      <div class="info-card">
+        <h3>// rewrite pipeline</h3>
+        <ul>
+          <li>HTML attrs: href/src/action/srcset/poster/ping…</li>
+          <li>CSS: <code>url()</code> + <code>@import</code></li>
+          <li>JS runtime: fetch / XHR / WebSocket / Worker</li>
+          <li>Headers: CSP/COOP/CORP stripped</li>
+          <li>Cookie: Domain/SameSite rewritten</li>
+          <li>Redirect: auto-followed (max 10 hops)</li>
+          <li>Encoding: gzip / deflate / brotli</li>
+          <li>Charset: UTF-8, Shift-JIS, EUC-JP…</li>
+        </ul>
+      </div>
+      <div class="info-card">
+        <h3>// architecture</h3>
+        <ul>
+          <li><code>index.html</code> — UI &amp; SW registration</li>
+          <li><code>sw.js</code> — fetch intercept + bare relay</li>
+          <li><code>server.js</code> — rewrite engine (Node.js)</li>
+          <li>URL codec: <code>Base64url</code> (no padding)</li>
+          <li>Prefix: <code>/uv/service/&lt;encoded&gt;</code></li>
+          <li>Binary: streamed (no buffer overhead)</li>
+          <li>Text: buffer → rewrite → UTF-8 out</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>UV PROXY v2 &mdash; educational use only</p>
+    <p>
+      <a href="#" id="btn-encode-tool">encode tool</a>
+      &nbsp;·&nbsp;
+      <a href="#" id="btn-direct-link">direct link</a>
+      &nbsp;·&nbsp;
+      <a href="/uv/ping" target="_blank">/uv/ping</a>
+    </p>
+  </footer>
+</div>
+
+<!-- ═══════════════ PROXY OVERLAY ═══════════════ -->
+<div class="overlay" id="overlay">
+  <div class="toolbar">
+    <button class="tb-btn" id="tb-back" title="Back">&#8592;</button>
+    <button class="tb-btn" id="tb-fwd"  title="Forward">&#8594;</button>
+    <button class="tb-btn" id="tb-reload" title="Reload">&#8635;</button>
+    <div class="security-badge" id="sec-badge">HTTP</div>
+    <input type="url" class="addr-bar" id="addr-bar" placeholder="navigating…" spellcheck="false" />
+    <button class="tb-btn" id="tb-newtab" title="Open in new tab">&#8599;</button>
+    <button class="tb-btn danger" id="tb-close" title="Close">&#10005;</button>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+  <iframe
+    id="proxy-frame"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
+    allow="autoplay; clipboard-read; clipboard-write"
+  ></iframe>
+</div>
+
+<!-- ═══════════════ ENCODE MODAL ═══════════════ -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <h3>// encode / decode tool</h3>
+    <input type="url" id="modal-input" placeholder="https://example.com" spellcheck="false" />
+    <div class="modal-result" id="modal-result">— enter a URL above —</div>
+    <div class="modal-actions">
+      <button class="modal-btn" id="modal-copy">Copy</button>
+      <button class="modal-btn primary" id="modal-go">Go</button>
+      <button class="modal-btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ════════════════════════════════════════════════════════════
+//  CODEC  (sw.js / server.js と同一)
+// ════════════════════════════════════════════════════════════
+function encode(str) {
+  try { return btoa(unescape(encodeURIComponent(str))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''); }
+  catch { return null; }
+}
+function decode(str) {
+  try {
+    const pad = (4-(str.length%4))%4;
+    return decodeURIComponent(escape(atob((str+'===='.slice(0,pad)).replace(/-/g,'+').replace(/_/g,'/'))));
+  } catch { return null; }
+}
+
+const UV_PREFIX = "/uv/service/";
+function proxyUrl(raw) { return UV_PREFIX + encode(raw); }
+
+// ════════════════════════════════════════════════════════════
+//  LOG
+// ════════════════════════════════════════════════════════════
+const logBody = document.getElementById("log-body");
+function ts() {
+  const d = new Date();
+  return [d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+}
+function log(msg, type='', method='') {
+  const el = document.createElement("div");
+  el.className = "le " + type;
+  el.innerHTML = `<span class="ts">[${ts()}]</span>${method?`<span class="meth">${method}</span>`:''}${msg}`;
+  logBody.appendChild(el);
+  logBody.scrollTop = logBody.scrollHeight;
+  // keep max 200 entries
+  while (logBody.children.length > 200) logBody.removeChild(logBody.firstChild);
+}
+document.getElementById("log-clear").onclick = () => { logBody.innerHTML = ''; log("Log cleared","info"); };
+
+// ════════════════════════════════════════════════════════════
+//  SERVICE WORKER REGISTRATION
+// ════════════════════════════════════════════════════════════
+const ledSw   = document.getElementById("led-sw");
+const statSw  = document.getElementById("stat-sw");
+const ledSrv  = document.getElementById("led-srv");
+const statSrv = document.getElementById("stat-srv");
+
+async function initSW() {
+  if (!("serviceWorker" in navigator)) {
+    ledSw.classList.add("err");
+    statSw.textContent = "SW: unsupported";
+    log("ServiceWorker not supported in this browser","err");
+    return false;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    log(`SW registered — scope: ${reg.scope}`, "ok");
+
+    if (reg.installing) {
+      await new Promise(r => { reg.installing.addEventListener("statechange", function h(){ if(this.state==="activated"){r();this.removeEventListener("statechange",h);} }); });
+    } else if (reg.waiting) {
+      reg.waiting.postMessage({ type: "SKIP_WAITING" });
+    }
+
+    ledSw.classList.add("on");
+    statSw.textContent = "SW: active";
+
+    reg.addEventListener("updatefound", () => {
+      log("SW update found — reload to apply","warn");
+    });
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      log("SW controller changed","info");
+    });
+    return true;
+  } catch(err) {
+    ledSw.classList.add("err");
+    statSw.textContent = "SW: error";
+    log("SW registration failed: " + err.message, "err");
+    return false;
+  }
+}
+
+async function checkServer() {
+  try {
+    const res = await fetch("/uv/ping", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    ledSrv.classList.add("on");
+    statSrv.textContent = "Server: online";
+    log(`Server OK — v${data.version||"?"}`, "ok");
+  } catch(err) {
+    ledSrv.classList.add("err");
+    statSrv.textContent = "Server: offline";
+    log("Server unreachable: " + err.message, "err");
+    log("Run: npm install express && node server.js", "warn");
+  }
+}
+
+(async () => {
+  await Promise.all([initSW(), checkServer()]);
+})();
+
+// ════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════════════════════════════
+const overlay   = document.getElementById("overlay");
+const frame     = document.getElementById("proxy-frame");
+const addrBar   = document.getElementById("addr-bar");
+const progress  = document.getElementById("progress");
+const secBadge  = document.getElementById("sec-badge");
+const urlInput  = document.getElementById("url-input");
+const goBtn     = document.getElementById("go-btn");
+
+let currentTarget = "";
+let historyStack  = [];
+let historyPos    = -1;
+
+function setProgress(pct, indeterminate=false) {
+  progress.style.width = indeterminate ? "" : pct + "%";
+  progress.classList.toggle("indeterminate", indeterminate);
+}
+
+function updateSecurity(url) {
+  try {
+    const u = new URL(url);
+    secBadge.textContent = u.protocol === "https:" ? "🔒 HTTPS" : "⚠ HTTP";
+    secBadge.classList.toggle("https", u.protocol === "https:");
+  } catch {
+    secBadge.textContent = "—";
+    secBadge.classList.remove("https");
+  }
+}
+
+function normalizeUrl(raw) {
+  raw = raw.trim();
+  if (!raw) return null;
+  if (!/^https?:\/\//i.test(raw)) raw = "https://" + raw;
+  try { new URL(raw); return raw; }
+  catch { return null; }
+}
+
+function navigate(rawUrl) {
+  const target = normalizeUrl(rawUrl);
+  if (!target) { log("Invalid URL: " + rawUrl, "err"); return; }
+
+  if (document.getElementById("opt-newtab").checked) {
+    window.open(proxyUrl(target), "_blank");
+    log("Opened in new tab: " + target, "ok", "GET");
+    return;
+  }
+
+  currentTarget = target;
+  historyStack = historyStack.slice(0, historyPos + 1);
+  historyStack.push(target);
+  historyPos = historyStack.length - 1;
+  updateNavButtons();
+
+  addrBar.value = target;
+  addrBar.classList.add("loading");
+  updateSecurity(target);
+  setProgress(0, true);
+
+  frame.src = proxyUrl(target);
+  overlay.classList.add("active");
+  log("Navigating → " + target, "info", "GET");
+}
+
+function updateNavButtons() {
+  document.getElementById("tb-back").disabled = historyPos <= 0;
+  document.getElementById("tb-fwd").disabled  = historyPos >= historyStack.length - 1;
+}
+
+frame.addEventListener("load", () => {
+  addrBar.classList.remove("loading");
+  setProgress(100);
+  setTimeout(() => setProgress(0), 500);
+
+  // iframe 内の location から実際の URL を推定
+  let loaded = currentTarget;
+  try {
+    const iSrc = frame.src || "";
+    if (iSrc.startsWith(UV_PREFIX)) {
+      const enc = iSrc.slice(UV_PREFIX.length).split("?")[0];
+      const dec = decode(enc);
+      if (dec) loaded = dec;
+    }
+  } catch {}
+  addrBar.value = loaded;
+  updateSecurity(loaded);
+  log("Loaded: " + loaded, "ok");
+});
+
+// Toolbar buttons
+document.getElementById("tb-back").onclick = () => {
+  if (historyPos > 0) { historyPos--; navigate(historyStack[historyPos]); }
+};
+document.getElementById("tb-fwd").onclick = () => {
+  if (historyPos < historyStack.length - 1) { historyPos++; navigate(historyStack[historyPos]); }
+};
+document.getElementById("tb-reload").onclick = () => {
+  frame.src = frame.src;
+  setProgress(0, true);
+  log("Reloading…", "info");
+};
+document.getElementById("tb-newtab").onclick = () => {
+  window.open(frame.src, "_blank");
+};
+document.getElementById("tb-close").onclick = () => {
+  overlay.classList.remove("active");
+  frame.src = "about:blank";
+  setProgress(0);
+  log("Session closed", "");
+};
+
+// Addr bar — navigate on Enter
+addrBar.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const target = normalizeUrl(addrBar.value);
+  if (target) navigate(target);
+});
+// addr bar — not readonly, allows manual URL entry
+addrBar.removeAttribute("readonly");
+
+// Main input
+goBtn.addEventListener("click", () => navigate(urlInput.value));
+urlInput.addEventListener("keydown", e => { if (e.key === "Enter") navigate(urlInput.value); });
+
+// Quick links
+document.getElementById("quick-grid").addEventListener("click", e => {
+  const btn = e.target.closest(".qbtn");
+  if (!btn) return;
+  const u = btn.dataset.url;
+  urlInput.value = u;
+  navigate(u);
+});
+
+// ════════════════════════════════════════════════════════════
+//  ENCODE MODAL
+// ════════════════════════════════════════════════════════════
+const modalBackdrop = document.getElementById("modal-backdrop");
+const modalInput    = document.getElementById("modal-input");
+const modalResult   = document.getElementById("modal-result");
+
+function showModal() { modalBackdrop.classList.add("active"); modalInput.focus(); }
+function hideModal() { modalBackdrop.classList.remove("active"); }
+
+document.getElementById("btn-encode-tool").onclick = e => { e.preventDefault(); showModal(); };
+document.getElementById("modal-close").onclick = hideModal;
+modalBackdrop.addEventListener("click", e => { if (e.target === modalBackdrop) hideModal(); });
+
+modalInput.addEventListener("input", () => {
+  const raw = normalizeUrl(modalInput.value);
+  if (!raw) { modalResult.textContent = "— invalid URL —"; return; }
+  const enc = encode(raw);
+  const proxy = location.origin + UV_PREFIX + enc;
+  modalResult.textContent = proxy;
+});
+
+document.getElementById("modal-copy").onclick = () => {
+  navigator.clipboard.writeText(modalResult.textContent).then(
+    () => log("Copied proxy URL to clipboard","ok"),
+    () => log("Clipboard copy failed","err")
+  );
+};
+document.getElementById("modal-go").onclick = () => {
+  const raw = normalizeUrl(modalInput.value);
+  if (raw) { hideModal(); navigate(raw); }
+};
+
+// Direct link
+document.getElementById("btn-direct-link").onclick = e => {
+  e.preventDefault();
+  const target = normalizeUrl(urlInput.value);
+  if (!target) { log("Enter a URL first","err"); return; }
+  window.open(proxyUrl(target), "_blank");
+  log("Direct link opened: " + target,"info");
+};
+
+// Dark overlay UI toggle
+document.getElementById("opt-dark-ui").addEventListener("change", e => {
+  frame.style.filter = e.target.checked ? "invert(1) hue-rotate(180deg)" : "";
+});
+
+// ════════════════════════════════════════════════════════════
+//  KEYBOARD SHORTCUTS
+// ════════════════════════════════════════════════════════════
+document.addEventListener("keydown", e => {
+  // Escape → close overlay
+  if (e.key === "Escape") {
+    if (overlay.classList.contains("active")) {
+      overlay.classList.remove("active");
+      frame.src = "about:blank";
+    }
+    if (modalBackdrop.classList.contains("active")) hideModal();
+  }
+  // Ctrl+L / Cmd+L → focus addr bar (if overlay open)
+  if ((e.ctrlKey || e.metaKey) && e.key === "l") {
+    e.preventDefault();
+    if (overlay.classList.contains("active")) { addrBar.focus(); addrBar.select(); }
+    else { urlInput.focus(); urlInput.select(); }
+  }
+  // Ctrl+E → encode modal
+  if ((e.ctrlKey || e.metaKey) && e.key === "e") { e.preventDefault(); showModal(); }
+});
+
+log("Ready. Press Ctrl+L to focus URL bar.", "info");
+</script>
+</body>
+</html>
