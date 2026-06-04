@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>UV Proxy v2</title>
 <style>
-/* ────────────────────────────────────────────────────────────
-   Design: CRT terminal / industrial — dark, monochrome accent
-──────────────────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:ital,wght@0,300;0,600;0,900;1,300&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,14 +31,12 @@
 
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow-x: hidden; }
 
-/* CRT scanlines */
 body::before {
   content: '';
   position: fixed; inset: 0;
   background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,224,.012) 2px, rgba(0,255,224,.012) 4px);
   pointer-events: none; z-index: 9997;
 }
-/* grain */
 body::after {
   content: '';
   position: fixed; inset: -100%;
@@ -57,10 +52,8 @@ body::after {
   90%{transform:translate(3%,4%)}
 }
 
-/* ── shell ── */
 .shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; max-width: 860px; margin: 0 auto; padding: 0 28px; }
 
-/* ── header ── */
 header { padding: 32px 0 24px; border-bottom: 1px solid var(--border2); position: relative; }
 .header-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
 .logo { display: flex; align-items: center; gap: 14px; }
@@ -91,10 +84,8 @@ header { padding: 32px 0 24px; border-bottom: 1px solid var(--border2); position
 .led.warn{ background: var(--yellow);box-shadow: 0 0 8px var(--yellow); }
 @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.6;} }
 
-/* ── main ── */
 main { padding: 32px 0 24px; display: flex; flex-direction: column; gap: 18px; }
 
-/* ── card ── */
 .card {
   background: var(--surface);
   border: 1px solid var(--border2);
@@ -110,7 +101,6 @@ main { padding: 32px 0 24px; display: flex; flex-direction: column; gap: 18px; }
 }
 .card-label::after { content:''; flex: 1; height: 1px; background: var(--border2); }
 
-/* ── URL input ── */
 .url-row { display: flex; gap: 8px; }
 .url-input {
   flex: 1; background: var(--bg); border: 1px solid var(--border2);
@@ -132,7 +122,6 @@ main { padding: 32px 0 24px; display: flex; flex-direction: column; gap: 18px; }
 .go-btn:active { transform: scale(.97); }
 .go-btn:disabled { background: var(--dim); cursor: not-allowed; }
 
-/* ── quick links ── */
 .quick-grid { display: flex; flex-wrap: wrap; gap: 7px; }
 .qbtn {
   background: transparent; border: 1px solid var(--border2);
@@ -143,13 +132,11 @@ main { padding: 32px 0 24px; display: flex; flex-direction: column; gap: 18px; }
 .qbtn:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(123,97,255,.08); }
 .qbtn .tag { color: var(--dim); margin-right: 4px; font-size: 10px; }
 
-/* ── options row ── */
 .opt-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
 .opt-check { display: flex; align-items: center; gap: 6px; cursor: pointer; font-family: var(--mono); font-size: 10px; color: var(--dim); user-select: none; }
 .opt-check input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; }
 .opt-check:hover { color: var(--text); }
 
-/* ── log panel ── */
 .log-wrap { background: var(--bg); border: 1px solid var(--border); }
 .log-header {
   display: flex; justify-content: space-between; align-items: center;
@@ -168,7 +155,6 @@ main { padding: 32px 0 24px; display: flex; flex-direction: column; gap: 18px; }
 .le .ts  { color: var(--dim); margin-right: 8px; opacity: .7; }
 .le .meth{ color: var(--accent3); margin-right: 6px; font-size: 9px; }
 
-/* ── info grid ── */
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media(max-width:580px){ .info-grid{ grid-template-columns:1fr; } }
 .info-card { background: var(--surface2); border: 1px solid var(--border); padding: 16px 18px; }
@@ -178,14 +164,10 @@ main { padding: 32px 0 24px; display: flex; flex-direction: column; gap: 18px; }
 .info-card li::before { content: "›  "; color: var(--accent); }
 code { background: var(--bg); border: 1px solid var(--border2); color: var(--accent); font-family: var(--mono); font-size: 10px; padding: 1px 6px; }
 
-/* ── footer ── */
 footer { padding: 16px 0; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 footer p, footer a { font-family: var(--mono); font-size: 9px; color: var(--dim); text-decoration: none; letter-spacing: .1em; }
 footer a:hover { color: var(--accent); }
 
-/* ════════════════════════════════════════════════════════════
-   PROXY IFRAME OVERLAY
-════════════════════════════════════════════════════════════ */
 .overlay { position: fixed; inset: 0; background: var(--bg); z-index: 500; display: none; flex-direction: column; }
 .overlay.active { display: flex; }
 
@@ -231,7 +213,6 @@ footer a:hover { color: var(--accent); }
 
 #proxy-frame { flex: 1; border: none; background: #fff; }
 
-/* ── modal (direct link / encode tool) ── */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(8,8,16,.85); z-index: 600; display: none; place-items: center; }
 .modal-backdrop.active { display: grid; }
 .modal { background: var(--surface); border: 1px solid var(--border2); padding: 28px; width: min(480px, 90vw); }
@@ -248,7 +229,6 @@ footer a:hover { color: var(--accent); }
 </head>
 <body>
 
-<!-- ═══════════════ MAIN UI ═══════════════ -->
 <div class="shell">
   <header>
     <div class="header-top">
@@ -267,7 +247,6 @@ footer a:hover { color: var(--accent); }
   </header>
 
   <main>
-    <!-- URL input -->
     <div class="card">
       <div class="card-accent"></div>
       <div class="card-body">
@@ -285,7 +264,6 @@ footer a:hover { color: var(--accent); }
       </div>
     </div>
 
-    <!-- Quick links -->
     <div class="card">
       <div class="card-accent" style="background:linear-gradient(90deg,var(--accent3),var(--accent2));"></div>
       <div class="card-body">
@@ -307,7 +285,6 @@ footer a:hover { color: var(--accent); }
       </div>
     </div>
 
-    <!-- Log -->
     <div class="log-wrap">
       <div class="log-header">
         <span>// activity log</span>
@@ -318,7 +295,6 @@ footer a:hover { color: var(--accent); }
       </div>
     </div>
 
-    <!-- Info grid -->
     <div class="info-grid">
       <div class="info-card">
         <h3>// rewrite pipeline</h3>
@@ -360,7 +336,6 @@ footer a:hover { color: var(--accent); }
   </footer>
 </div>
 
-<!-- ═══════════════ PROXY OVERLAY ═══════════════ -->
 <div class="overlay" id="overlay">
   <div class="toolbar">
     <button class="tb-btn" id="tb-back" title="Back">&#8592;</button>
@@ -379,7 +354,6 @@ footer a:hover { color: var(--accent); }
   ></iframe>
 </div>
 
-<!-- ═══════════════ ENCODE MODAL ═══════════════ -->
 <div class="modal-backdrop" id="modal-backdrop">
   <div class="modal">
     <h3>// encode / decode tool</h3>
@@ -395,9 +369,6 @@ footer a:hover { color: var(--accent); }
 
 <script>
 "use strict";
-// ════════════════════════════════════════════════════════════
-//  CODEC  (sw.js / server.js と同一)
-// ════════════════════════════════════════════════════════════
 function encode(str) {
   try { return btoa(unescape(encodeURIComponent(str))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''); }
   catch { return null; }
@@ -412,9 +383,6 @@ function decode(str) {
 const UV_PREFIX = "/uv/service/";
 function proxyUrl(raw) { return UV_PREFIX + encode(raw); }
 
-// ════════════════════════════════════════════════════════════
-//  LOG
-// ════════════════════════════════════════════════════════════
 const logBody = document.getElementById("log-body");
 function ts() {
   const d = new Date();
@@ -426,14 +394,10 @@ function log(msg, type='', method='') {
   el.innerHTML = `<span class="ts">[${ts()}]</span>${method?`<span class="meth">${method}</span>`:''}${msg}`;
   logBody.appendChild(el);
   logBody.scrollTop = logBody.scrollHeight;
-  // keep max 200 entries
   while (logBody.children.length > 200) logBody.removeChild(logBody.firstChild);
 }
 document.getElementById("log-clear").onclick = () => { logBody.innerHTML = ''; log("Log cleared","info"); };
 
-// ════════════════════════════════════════════════════════════
-//  SERVICE WORKER REGISTRATION
-// ════════════════════════════════════════════════════════════
 const ledSw   = document.getElementById("led-sw");
 const statSw  = document.getElementById("stat-sw");
 const ledSrv  = document.getElementById("led-srv");
@@ -494,9 +458,6 @@ async function checkServer() {
   await Promise.all([initSW(), checkServer()]);
 })();
 
-// ════════════════════════════════════════════════════════════
-//  NAVIGATION
-// ════════════════════════════════════════════════════════════
 const overlay   = document.getElementById("overlay");
 const frame     = document.getElementById("proxy-frame");
 const addrBar   = document.getElementById("addr-bar");
@@ -569,7 +530,6 @@ frame.addEventListener("load", () => {
   setProgress(100);
   setTimeout(() => setProgress(0), 500);
 
-  // iframe 内の location から実際の URL を推定
   let loaded = currentTarget;
   try {
     const iSrc = frame.src || "";
@@ -584,7 +544,6 @@ frame.addEventListener("load", () => {
   log("Loaded: " + loaded, "ok");
 });
 
-// Toolbar buttons
 document.getElementById("tb-back").onclick = () => {
   if (historyPos > 0) { historyPos--; navigate(historyStack[historyPos]); }
 };
@@ -606,20 +565,16 @@ document.getElementById("tb-close").onclick = () => {
   log("Session closed", "");
 };
 
-// Addr bar — navigate on Enter
 addrBar.addEventListener("keydown", e => {
   if (e.key !== "Enter") return;
   const target = normalizeUrl(addrBar.value);
   if (target) navigate(target);
 });
-// addr bar — not readonly, allows manual URL entry
 addrBar.removeAttribute("readonly");
 
-// Main input
 goBtn.addEventListener("click", () => navigate(urlInput.value));
 urlInput.addEventListener("keydown", e => { if (e.key === "Enter") navigate(urlInput.value); });
 
-// Quick links
 document.getElementById("quick-grid").addEventListener("click", e => {
   const btn = e.target.closest(".qbtn");
   if (!btn) return;
@@ -628,9 +583,6 @@ document.getElementById("quick-grid").addEventListener("click", e => {
   navigate(u);
 });
 
-// ════════════════════════════════════════════════════════════
-//  ENCODE MODAL
-// ════════════════════════════════════════════════════════════
 const modalBackdrop = document.getElementById("modal-backdrop");
 const modalInput    = document.getElementById("modal-input");
 const modalResult   = document.getElementById("modal-result");
@@ -661,7 +613,6 @@ document.getElementById("modal-go").onclick = () => {
   if (raw) { hideModal(); navigate(raw); }
 };
 
-// Direct link
 document.getElementById("btn-direct-link").onclick = e => {
   e.preventDefault();
   const target = normalizeUrl(urlInput.value);
@@ -670,16 +621,11 @@ document.getElementById("btn-direct-link").onclick = e => {
   log("Direct link opened: " + target,"info");
 };
 
-// Dark overlay UI toggle
 document.getElementById("opt-dark-ui").addEventListener("change", e => {
   frame.style.filter = e.target.checked ? "invert(1) hue-rotate(180deg)" : "";
 });
 
-// ════════════════════════════════════════════════════════════
-//  KEYBOARD SHORTCUTS
-// ════════════════════════════════════════════════════════════
 document.addEventListener("keydown", e => {
-  // Escape → close overlay
   if (e.key === "Escape") {
     if (overlay.classList.contains("active")) {
       overlay.classList.remove("active");
@@ -687,13 +633,11 @@ document.addEventListener("keydown", e => {
     }
     if (modalBackdrop.classList.contains("active")) hideModal();
   }
-  // Ctrl+L / Cmd+L → focus addr bar (if overlay open)
   if ((e.ctrlKey || e.metaKey) && e.key === "l") {
     e.preventDefault();
     if (overlay.classList.contains("active")) { addrBar.focus(); addrBar.select(); }
     else { urlInput.focus(); urlInput.select(); }
   }
-  // Ctrl+E → encode modal
   if ((e.ctrlKey || e.metaKey) && e.key === "e") { e.preventDefault(); showModal(); }
 });
 
