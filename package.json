@@ -1,0 +1,22 @@
+{
+  "name": "uv-proxy-v2",
+  "version": "2.0.0",
+  "description": "A web proxy implementation using Express and Service Workers",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "proxy",
+    "service-worker",
+    "express"
+  ],
+  "author": "sennin_sugar",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
